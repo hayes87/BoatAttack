@@ -79,8 +79,13 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
                 m_ReflectionCamera = CreateMirrorObjects(realCamera);
             
             // find out the reflection plane: position and normal in world space
-            Vector3 pos = target.transform.position;
-            Vector3 normal = target.transform.up;
+            Vector3 pos = Vector3.zero;
+            Vector3 normal = Vector3.up;
+            if (target != null)
+            {
+                pos = target.transform.position;
+                normal = target.transform.up;
+            }
 
             UpdateCamera(realCamera, m_ReflectionCamera);
             
@@ -93,7 +98,7 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             reflection *= Matrix4x4.Scale(new Vector3(1, -1, 1));
 
             CalculateReflectionMatrix(ref reflection, reflectionPlane);
-            Vector3 oldpos = realCamera.transform.position - new Vector3(0, target.transform.position.y * 2, 0);
+            Vector3 oldpos = realCamera.transform.position - new Vector3(0, pos.y * 2, 0);
             Vector3 newpos = ReflectPosition(oldpos);
             m_ReflectionCamera.transform.forward = Vector3.Scale(realCamera.transform.forward, new Vector3(1, -1, 1));
             m_ReflectionCamera.worldToCameraMatrix = realCamera.worldToCameraMatrix * reflection;
@@ -215,10 +220,9 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
         }
 
         public void ExecuteBeforeCameraRender(
+            LightweightPipeline pipelineInstance,
             ScriptableRenderContext context,
-            Camera camera, 
-            LightweightPipeline.PipelineSettings pipelineSettings,
-            ScriptableRenderer renderer)
+            Camera camera)
         {
 
             if (!enabled)
@@ -226,14 +230,17 @@ namespace UnityEngine.Experimental.Rendering.LightweightPipeline
             
             GL.invertCulling = true;
             RenderSettings.fog = false;
+            var bias = QualitySettings.lodBias;
+            QualitySettings.lodBias = bias * 0.25f;
             
             UpdateReflectionCamera(camera);
-            
+
             CullResults cullResults = new CullResults();
-            LightweightPipeline.RenderSingleCamera(context, pipelineSettings, m_ReflectionCamera, ref cullResults, new DefaultRendererSetup(), renderer);
+            LightweightPipeline.RenderSingleCamera(pipelineInstance, context, m_ReflectionCamera, ref cullResults);
             
             GL.invertCulling = false;
             RenderSettings.fog = true;
+            QualitySettings.lodBias = bias;
         }
     }
 }
